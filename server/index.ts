@@ -2,9 +2,10 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
+import path from 'node:path'
 
 const app = express()
-const PORT = 3001
+const PORT = Number(process.env.PORT) || 3001
 
 app.disable('x-powered-by')
 
@@ -152,12 +153,21 @@ app.get('/api/trace/base/:address', traceLimiter, async (req, res) => {
   }
 })
 
+app.use(express.static(path.resolve('dist')))
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+    return res.sendFile(path.resolve('dist/index.html'))
+  }
+  next()
+})
+
 app.use((_req, res) => {
   res.status(404).json({
     error: 'Not found',
   })
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`TRACE API running on http://localhost:${PORT}`)
 })

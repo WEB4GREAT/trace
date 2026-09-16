@@ -286,7 +286,7 @@ export default function App() {
 
     try {
       const response = await fetch(
-        `http://localhost:3001/api/trace/base/${encodeURIComponent(value)}`,
+        `/api/trace/base/${encodeURIComponent(value)}`,
       )
 
       const data = await response.json()
