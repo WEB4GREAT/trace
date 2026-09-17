@@ -6,6 +6,11 @@ export type ChainFamily =
   | 'aptos'
   | 'ton'
 
+export type ChainProvider =
+  | 'blockscout'
+
+  | 'native'
+
 export type ChainConfig = {
   id: string
   name: string
@@ -13,8 +18,9 @@ export type ChainConfig = {
   family: ChainFamily
   symbol: string
   explorer: string
-  provider: 'blockscout' | 'etherscan' | 'native'
+  provider: ChainProvider
   api?: string
+  rpc?: string
   live: boolean
 }
 
