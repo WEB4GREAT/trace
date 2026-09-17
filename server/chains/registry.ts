@@ -68,7 +68,8 @@ export const CHAINS: Record<string, ChainConfig> = {
     family: 'evm',
     symbol: 'BNB',
     explorer: 'https://bscscan.com',
-    provider: 'etherscan',
+    provider: 'native',
+    rpc: 'https://bsc-dataseed.bnbchain.org',
     live: false,
   },
 
@@ -79,7 +80,8 @@ export const CHAINS: Record<string, ChainConfig> = {
     family: 'evm',
     symbol: 'AVAX',
     explorer: 'https://snowtrace.io',
-    provider: 'etherscan',
+    provider: 'native',
+    rpc: 'https://api.avax.network/ext/bc/C/rpc',
     live: false,
   },
 
