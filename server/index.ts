@@ -47,7 +47,7 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/chains', (_req, res) => {
   res.json({
-    chains: listChains(),
+    chains: listChains().filter((chain) => chain.live),
   })
 })
 

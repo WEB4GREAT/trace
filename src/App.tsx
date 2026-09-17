@@ -47,15 +47,7 @@ const CHAINS: Chain[] = [
   { id: 'arbitrum', name: 'Arbitrum', symbol: 'ARB', explorer: 'https://arbiscan.io' },
   { id: 'optimism', name: 'Optimism', symbol: 'OP', explorer: 'https://optimistic.etherscan.io' },
   { id: 'polygon', name: 'Polygon', symbol: 'POL', explorer: 'https://polygonscan.com' },
-  { id: 'bnb', name: 'BNB Chain', symbol: 'BNB', explorer: 'https://bscscan.com' },
-  { id: 'avalanche', name: 'Avalanche', symbol: 'AVAX', explorer: 'https://snowtrace.io' },
-  { id: 'solana', name: 'Solana', symbol: 'SOL', explorer: 'https://explorer.solana.com' },
-  { id: 'tron', name: 'TRON', symbol: 'TRX', explorer: 'https://tronscan.org' },
-  { id: 'sui', name: 'Sui', symbol: 'SUI', explorer: 'https://suiexplorer.com' },
-  { id: 'aptos', name: 'Aptos', symbol: 'APT', explorer: 'https://explorer.aptoslabs.com' },
-  { id: 'ton', name: 'TON', symbol: 'TON', explorer: 'https://tonviewer.com' },
 ]
-
 const API_BASE =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV ? 'http://localhost:3000' : '')
@@ -156,7 +148,7 @@ function App() {
 
       const rect = trigger.getBoundingClientRect()
       const menuWidth = Math.min(285, window.innerWidth - 28)
-      const menuHeight = Math.min(390, window.innerHeight - 32)
+      const menuHeight = 228
 
       let left = rect.left
       let top = rect.bottom + 8
@@ -412,14 +404,13 @@ function App() {
               <div className="supported">
                 <span>SUPPORTED NETWORKS</span>
                 <div className="network-dots">
-                  {CHAINS.slice(0, 6).map((chain) => (
+                  {CHAINS.map((chain) => (
                     <span
                       key={chain.id}
                       title={chain.name}
                       className="network-mini"
                     />
                   ))}
-                  <span className="more-networks">+6</span>
                 </div>
               </div>
 
