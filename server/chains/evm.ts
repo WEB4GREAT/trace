@@ -1,6 +1,6 @@
-import type { ChainConfig } from './registry'
+import type { ChainConfig } from './types'
 
-export type BlockscoutTransaction = {
+type BlockscoutTransaction = {
   hash?: string
   from?: {
     hash?: string
@@ -24,8 +24,15 @@ export async function fetchEvmTransactions(
   chain: ChainConfig,
   address: string,
 ) {
+  if (!chain.api) {
+    throw new Error(`No EVM provider configured for ${chain.name}`)
+  }
+
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 7_000)
+
+  const timeout = setTimeout(() => {
+    controller.abort()
+  }, 8_000)
 
   try {
     const response = await fetch(
@@ -46,7 +53,7 @@ export async function fetchEvmTransactions(
 
     return {
       items: Array.isArray(data.items)
-        ? data.items.slice(0, 50) as BlockscoutTransaction[]
+        ? (data.items.slice(0, 60) as BlockscoutTransaction[])
         : [],
     }
   } finally {
