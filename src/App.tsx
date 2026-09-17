@@ -1,29 +1,44 @@
-import { useMemo, useState } from 'react'
-import './App.css'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  FiArrowUpRight,
+  FiCheck,
+  FiCopy,
+  FiExternalLink,
+  FiSearch,
+} from 'react-icons/fi'
+
+type Chain = {
+  id: string
+  name: string
+  family: string
+  symbol: string
+  explorer: string
+}
 
 type TraceTransaction = {
   hash?: string
   from?: unknown
   to?: unknown
-  value?: unknown
-  timestamp?: string
-  status?: string
-  method?: string
-  block?: number | string
+  value?: string | null
+  status?: string | null
+  result?: string | null
+  block_number?: number | null
+  timestamp?: string | null
+  gas_used?: string | null
 }
 
 type Counterparty = {
-  address?: unknown
-  hash?: unknown
-  name?: string
-  type?: string
+  address?: string
   count?: number
-  transactionCount?: number
-  value?: unknown
+  isContract?: boolean
+  name?: string | null
 }
 
 type TraceResult = {
-  chain: string
+  chain?: string
+  chainId?: string
+  symbol?: string
+  explorer?: string
   address: string
   transactions: TraceTransaction[]
   transactionCount: number
@@ -35,273 +50,235 @@ function normalizeAddress(value: unknown): string {
   if (typeof value === 'string') return value
 
   if (value && typeof value === 'object') {
-    const object = value as {
-      address?: unknown
-      hash?: unknown
-    }
+    const item = value as { address?: unknown; hash?: unknown }
 
-    if (typeof object.address === 'string') return object.address
-    if (typeof object.hash === 'string') return object.hash
+    if (typeof item.address === 'string') return item.address
+    if (typeof item.hash === 'string') return item.hash
   }
 
-  return String(value ?? '')
+  return ''
 }
 
-function shortAddress(value: unknown, left = 6, right = 4) {
-  const text = normalizeAddress(value)
+function shortAddress(value: unknown): string {
+  const address = normalizeAddress(value)
 
-  if (!text) return 'Unknown'
+  if (!address) return '—'
+  if (address.length <= 14) return address
 
-  if (text.length <= left + right + 1) return text
-
-  return `${text.slice(0, left)}…${text.slice(-right)}`
+  return `${address.slice(0, 6)}…${address.slice(-6)}`
 }
 
-function ethValue(value: unknown) {
-  const raw = normalizeAddress(value)
-
-  if (!raw || raw === '0') return '0 ETH'
+function ethValue(value: unknown, symbol = 'ETH'): string {
+  if (typeof value !== 'string' || !value) return `0 ${symbol}`
 
   try {
-    const number = Number(raw)
+    const amount = Number(value) / 1e18
 
-    if (!Number.isFinite(number)) return '—'
+    if (!Number.isFinite(amount)) return `0 ${symbol}`
 
-    if (number === 0) return '0 ETH'
-
-    if (number < 0.0001) {
-      return `${number.toFixed(6)} ETH`
-    }
-
-    return `${number.toFixed(4)} ETH`
+    return `${amount.toFixed(amount >= 1 ? 4 : 6)} ${symbol}`
   } catch {
-    return '—'
+    return `0 ${symbol}`
   }
 }
 
-function formatDate(value?: string) {
-  if (!value) return 'Unknown time'
+function formatDate(value?: string | null): string {
+  if (!value) return 'Unknown'
 
   const date = new Date(value)
 
-  if (Number.isNaN(date.getTime())) return 'Unknown time'
+  if (Number.isNaN(date.getTime())) return 'Unknown'
 
-  return new Intl.DateTimeFormat('en', {
+  return date.toLocaleDateString(undefined, {
     month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+    day: 'numeric',
+    year: 'numeric',
+  })
 }
 
 function Logo() {
   return (
     <div className="brand-mark" aria-label="TRACE">
-      <svg
-        width="30"
-        height="30"
-        viewBox="0 0 30 30"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M7 8H23"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-        />
-        <path
-          d="M15 8V22"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-        />
-        <circle cx="7" cy="8" r="2.5" fill="currentColor" />
-        <circle cx="23" cy="8" r="2.5" fill="currentColor" />
-        <circle cx="15" cy="22" r="2.5" fill="currentColor" />
-        <path
-          d="M15 22L23 15"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          opacity=".45"
-        />
-      </svg>
+      <span className="brand-dot" />
+      <span>TRACE</span>
     </div>
   )
 }
 
+function SearchIcon() {
+  return <FiSearch className="search-icon" />
+}
+
 function ArrowUpRight() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M5 15L15 5M7 5H15V13" />
-    </svg>
-  )
+  return <FiArrowUpRight />
 }
 
 function CopyIcon() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true">
-      <rect x="7" y="7" width="9" height="9" rx="2" />
-      <path d="M13 7V5.5A2.5 2.5 0 0010.5 3H5.5A2.5 2.5 0 003 5.5v5A2.5 2.5 0 005.5 13H7" />
-    </svg>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="M16 16L21 21" />
-    </svg>
-  )
+  return <FiCopy />
 }
 
 function NetworkMap({
-  wallet,
+  address,
   counterparties,
-  onSelect,
 }: {
-  wallet: string
+  address: string
   counterparties: Counterparty[]
-  onSelect: (item: Counterparty) => void
 }) {
-  const nodes = counterparties.slice(0, 12)
+  const nodes = counterparties.slice(0, 8)
 
   return (
-    <div className="network-stage">
+    <div className="network-map">
       <div className="network-grid" />
 
-      <div className="network-orbit orbit-one" />
-      <div className="network-orbit orbit-two" />
-      <div className="network-orbit orbit-three" />
+      <div className="network-lines">
+        {nodes.map((_, index) => {
+          const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2
+          const x = 50 + Math.cos(angle) * 31
+          const y = 50 + Math.sin(angle) * 31
 
-      <div className="network-center">
+          return (
+            <div
+              className="network-line"
+              key={`${index}-${x}-${y}`}
+              style={{
+                left: '50%',
+                top: '50%',
+                width: `${Math.sqrt(
+                  Math.pow(x - 50, 2) + Math.pow(y - 50, 2),
+                )}%`,
+                transform: `rotate(${Math.atan2(y - 50, x - 50)}rad)`,
+              }}
+            />
+          )
+        })}
+      </div>
+
+      <div className="center-node">
         <div className="center-pulse" />
-        <div className="center-node">
-          <span>YOU</span>
-          <strong>{shortAddress(wallet, 4, 3)}</strong>
+        <div className="center-node-inner">
+          <span>WALLET</span>
+          <strong>{shortAddress(address)}</strong>
         </div>
       </div>
 
-      <svg
-        className="network-lines"
-        viewBox="0 0 1000 560"
-        preserveAspectRatio="none"
-      >
-        {nodes.map((_, index) => {
-          const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2 - Math.PI / 2
-          const radiusX = 360
-          const radiusY = 190
-          const x = 500 + Math.cos(angle) * radiusX
-          const y = 280 + Math.sin(angle) * radiusY
-
-          return (
-            <g key={`line-${index}`}>
-              <line
-                x1="500"
-                y1="280"
-                x2={x}
-                y2={y}
-                className="network-line"
-              />
-              <circle
-                cx={x}
-                cy={y}
-                r="3"
-                className="line-particle"
-              />
-            </g>
-          )
-        })}
-      </svg>
-
       {nodes.map((item, index) => {
-        const angle =
-          (index / Math.max(nodes.length, 1)) * Math.PI * 2 - Math.PI / 2
-
-        const left = 50 + Math.cos(angle) * 36
-        const top = 50 + Math.sin(angle) * 34
-
-        const address = normalizeAddress(item)
+        const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2
+        const x = 50 + Math.cos(angle) * 31
+        const y = 50 + Math.sin(angle) * 31
 
         return (
-          <button
+          <div
             className="counterparty-node"
-            key={`${address}-${index}`}
+            key={`${item.address}-${index}`}
             style={{
-              left: `${left}%`,
-              top: `${top}%`,
-              animationDelay: `${index * 90}ms`,
+              left: `${x}%`,
+              top: `${y}%`,
             }}
-            onClick={() => onSelect(item)}
           >
-            <span className="node-ring">
-              <span className="node-dot" />
-            </span>
-            <span className="node-info">
-              <b>{shortAddress(address, 5, 3)}</b>
-              <small>
-                {item.transactionCount ??
-                  item.count ??
-                  1}
-                {' '}
-                tx
-              </small>
-            </span>
-          </button>
+            <div className="counterparty-orb" />
+            <div className="counterparty-card">
+              <span>{item.name || (item.isContract ? 'CONTRACT' : 'WALLET')}</span>
+              <strong>{shortAddress(item.address)}</strong>
+              <small>{item.count || 0} TX</small>
+            </div>
+          </div>
         )
       })}
 
-      <div className="network-caption">
-        <span className="live-dot" />
-        LIVE RELATIONSHIP MAP
-      </div>
-
-      <div className="network-scale">
-        <span>01</span>
-        <i />
-        <span>12</span>
-      </div>
+      {!nodes.length && (
+        <div className="empty-map">
+          <span>NO CONNECTIONS</span>
+          <strong>No transaction relationships found.</strong>
+        </div>
+      )}
     </div>
   )
 }
 
 export default function App() {
   const [address, setAddress] = useState('')
+  const [chains, setChains] = useState<Chain[]>([])
+  const [selectedChain, setSelectedChain] = useState('base')
   const [result, setResult] = useState<TraceResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [selected, setSelected] = useState<Counterparty | null>(null)
   const [copied, setCopied] = useState(false)
+  const [selected, setSelected] = useState<TraceTransaction | null>(null)
+
+  useEffect(() => {
+    async function loadChains() {
+      try {
+        const response = await fetch('/api/chains')
+
+        if (!response.ok) throw new Error('Unable to load networks')
+
+        const data = await response.json()
+
+        if (Array.isArray(data.chains) && data.chains.length) {
+          setChains(data.chains)
+        }
+      } catch {
+        setChains([
+          {
+            id: 'base',
+            name: 'Base',
+            family: 'evm',
+            symbol: 'ETH',
+            explorer: 'https://base.blockscout.com',
+          },
+        ])
+      }
+    }
+
+    loadChains()
+  }, [])
+
+  const activeChain = useMemo(() => {
+    return (
+      chains.find((item) => item.id === selectedChain) ||
+      chains.find((item) => item.id === result?.chainId) ||
+      null
+    )
+  }, [chains, selectedChain, result?.chainId])
+
+  const chainName =
+    result?.chain || activeChain?.name || 'Base'
+
+  const symbol =
+    result?.symbol || activeChain?.symbol || 'ETH'
+
+  const explorer =
+    result?.explorer ||
+    activeChain?.explorer ||
+    'https://base.blockscout.com'
 
   async function traceWallet() {
     const value = address.trim()
 
-    if (!value) return
+    if (!value || loading) return
 
     setLoading(true)
     setError('')
+    setResult(null)
     setSelected(null)
 
     try {
       const response = await fetch(
-        `/api/trace/base/${encodeURIComponent(value)}`,
+        `/api/trace/${selectedChain}/${encodeURIComponent(value)}`,
       )
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data?.error || 'Unable to trace wallet')
+        throw new Error(data.error || 'Unable to trace wallet')
       }
 
       setResult(data)
     } catch (err) {
-      setResult(null)
       setError(
         err instanceof Error
           ? err.message
-          : 'TRACE could not reach the intelligence API.',
+          : 'TRACE API is currently unavailable',
       )
     } finally {
       setLoading(false)
@@ -315,53 +292,44 @@ export default function App() {
       await navigator.clipboard.writeText(result.address)
       setCopied(true)
 
-      window.setTimeout(() => setCopied(false), 1600)
+      window.setTimeout(() => {
+        setCopied(false)
+      }, 1600)
     } catch {
       setCopied(false)
     }
   }
 
-  const recentTransactions = useMemo(
-    () => result?.transactions?.slice(0, 8) ?? [],
-    [result],
-  )
-
-  const chain = result?.chain?.toUpperCase() || 'BASE'
+  const transactions = result?.transactions || []
+  const counterparties = result?.counterparties || []
 
   return (
-    <main className="app-shell">
+    <div className="app-shell">
       <header className="topbar">
-        <div className="brand">
-          <Logo />
-          <div>
-            <div className="brand-name">TRACE</div>
-            <div className="brand-sub">ON-CHAIN INTELLIGENCE</div>
-          </div>
-        </div>
+        <Logo />
 
         <div className="topbar-right">
-          <div className="system-status">
-            <span />
-            SYSTEM ONLINE
+          <div className="network-pill">
+            <span className="status-dot" />
+            <span>{chainName.toUpperCase()}</span>
           </div>
 
-          <div className="chain-pill">
-            <span className="base-icon" />
-            BASE
-          </div>
+          <div className="version-label">V2</div>
         </div>
       </header>
 
-      {!result && !loading && !error && (
+      <main>
         <section className="hero">
-          <div className="hero-index">TRACE / 001</div>
-
           <div className="hero-copy">
-            <p className="eyebrow">PUBLIC WALLET INTELLIGENCE</p>
+            <div className="eyebrow">
+              <span />
+              ON-CHAIN INTELLIGENCE
+            </div>
 
             <h1>
-              Follow the
-              <span> trail.</span>
+              See the
+              <br />
+              <span>trail.</span>
             </h1>
 
             <p className="hero-description">
@@ -372,8 +340,8 @@ export default function App() {
 
           <div className="search-panel">
             <div className="search-label">
-              <span>WALLET ADDRESS</span>
-              <span>BASE NETWORK</span>
+              <span>PUBLIC WALLET</span>
+              <span>SELECT NETWORK</span>
             </div>
 
             <div className="search-row">
@@ -389,12 +357,28 @@ export default function App() {
                 spellCheck={false}
               />
 
+              <select
+                value={selectedChain}
+                onChange={(event) => {
+                  setSelectedChain(event.target.value)
+                  setResult(null)
+                  setError('')
+                }}
+                aria-label="Select blockchain network"
+              >
+                {chains.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+
               <button
                 className="trace-button"
                 onClick={traceWallet}
-                disabled={!address.trim()}
+                disabled={!address.trim() || loading}
               >
-                TRACE
+                {loading ? 'TRACING' : 'TRACE'}
                 <ArrowUpRight />
               </button>
             </div>
@@ -406,286 +390,168 @@ export default function App() {
             <span>READ-ONLY INTELLIGENCE</span>
           </div>
         </section>
-      )}
 
-      {loading && (
-        <section className="loading-view">
-          <div className="loading-mark">
-            <Logo />
-          </div>
-
-          <div>
-            <p className="eyebrow">TRACE ENGINE</p>
-            <h2>Mapping the trail.</h2>
-            <p>Reading public on-chain relationships...</p>
-          </div>
-
-          <div className="loading-bar">
-            <span />
-          </div>
-        </section>
-      )}
-
-      {error && !loading && (
-        <section className="error-view">
-          <div className="error-number">ERR / 01</div>
-          <h2>Trace interrupted.</h2>
-          <p>{error}</p>
-
-          <button
-            className="secondary-button"
-            onClick={() => {
-              setError('')
-              setResult(null)
-            }}
-          >
-            TRY AGAIN
-          </button>
-        </section>
-      )}
-
-      {result && !loading && !error && (
-        <section className="workspace">
-          <div className="result-header">
+        {error && (
+          <section className="error-panel">
             <div>
-              <div className="result-kicker">
-                TRACE COMPLETE
-                <span />
-                {chain}
-              </div>
-
-              <h1>{shortAddress(result.address, 10, 8)}</h1>
-
-              <div className="address-line">
-                {result.address}
-
-                <button
-                  className="icon-button"
-                  onClick={copyAddress}
-                  title="Copy address"
-                >
-                  <CopyIcon />
-                </button>
-
-                {copied && <span className="copied">COPIED</span>}
-              </div>
+              <span>TRACE ERROR</span>
+              <strong>{error}</strong>
             </div>
 
-            <div className="result-actions">
-              <a
-                href={`https://base.blockscout.com/address/${result.address}`}
-                target="_blank"
-                rel="noreferrer"
-                className="secondary-button"
-              >
-                EXPLORER
-                <ArrowUpRight />
-              </a>
+            <button onClick={traceWallet}>RETRY</button>
+          </section>
+        )}
 
-              <button
-                className="secondary-button"
-                onClick={() => {
-                  setResult(null)
-                  setSelected(null)
-                  setAddress('')
-                }}
-              >
-                NEW TRACE
-              </button>
-            </div>
-          </div>
-
-          <div className="stats-strip">
-            <div className="stat">
-              <span>TRANSACTIONS</span>
-              <strong>{result.transactionCount}</strong>
-            </div>
-
-            <div className="stat">
-              <span>CONNECTIONS</span>
-              <strong>{result.connections}</strong>
-            </div>
-
-            <div className="stat">
-              <span>COUNTERPARTIES</span>
-              <strong>{result.counterparties.length}</strong>
-            </div>
-
-            <div className="stat stat-live">
-              <span>NETWORK</span>
-              <strong>
-                <i />
-                {chain}
-              </strong>
-            </div>
-          </div>
-
-          <div className="main-grid">
-            <section className="map-section">
-              <div className="section-heading">
-                <div>
-                  <span className="section-number">01</span>
-                  <div>
-                    <p>RELATIONSHIP GRAPH</p>
-                    <h2>Wallet topology</h2>
-                  </div>
-                </div>
-
-                <span className="section-meta">
-                  {result.counterparties.length} nodes detected
-                </span>
-              </div>
-
-              <NetworkMap
-                wallet={result.address}
-                counterparties={result.counterparties}
-                onSelect={setSelected}
-              />
-            </section>
-
-            <aside className="intel-panel">
-              <div className="section-heading compact">
-                <div>
-                  <span className="section-number">02</span>
-                  <div>
-                    <p>SELECTED NODE</p>
-                    <h2>
-                      {selected
-                        ? shortAddress(selected, 8, 6)
-                        : 'Network signal'}
-                    </h2>
-                  </div>
-                </div>
-              </div>
-
-              {selected ? (
-                <div className="selected-node">
-                  <div className="signal-orb">
-                    <span />
-                  </div>
-
-                  <span className="selected-label">COUNTERPARTY</span>
-
-                  <h3>{shortAddress(selected, 12, 8)}</h3>
-
-                  <p>{normalizeAddress(selected)}</p>
-
-                  <div className="selected-data">
-                    <div>
-                      <span>INTERACTIONS</span>
-                      <strong>
-                        {selected.transactionCount ?? selected.count ?? '—'}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <span>TYPE</span>
-                      <strong>
-                        {selected.type?.toUpperCase() || 'ADDRESS'}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="intel-empty">
-                  <div className="empty-cross">
-                    <span />
-                    <i />
-                  </div>
-
-                  <h3>Explore the graph</h3>
-                  <p>
-                    Select a connected wallet to inspect its relationship
-                    signal.
-                  </p>
-                </div>
-              )}
-
-              <div className="intel-footer">
-                <span>TRACE SIGNAL</span>
-                <strong>
-                  <i />
-                  ACTIVE
-                </strong>
-              </div>
-            </aside>
-          </div>
-
-          <section className="activity-section">
-            <div className="section-heading">
+        {result && (
+          <section className="results">
+            <div className="results-header">
               <div>
-                <span className="section-number">03</span>
-                <div>
-                  <p>RECENT ACTIVITY</p>
-                  <h2>Transaction trail</h2>
+                <div className="section-kicker">
+                  <span />
+                  {chainName.toUpperCase()} TRACE
                 </div>
-              </div>
 
-              <span className="section-meta">LATEST 08</span>
-            </div>
+                <h2>Wallet intelligence</h2>
 
-            <div className="activity-table">
-              <div className="activity-head">
-                <span>TRANSACTION</span>
-                <span>COUNTERPARTY</span>
-                <span>VALUE</span>
-                <span>TIME</span>
-                <span>STATUS</span>
-              </div>
+                <div className="address-row">
+                  <span>{shortAddress(result.address)}</span>
 
-              {recentTransactions.map((tx, index) => {
-                const to = normalizeAddress(tx.to)
-                const from = normalizeAddress(tx.from)
-                const counterparty =
-                  from.toLowerCase() === result.address.toLowerCase()
-                    ? to
-                    : from
+                  <button onClick={copyAddress} aria-label="Copy address">
+                    {copied ? <FiCheck /> : <CopyIcon />}
+                  </button>
 
-                return (
                   <a
-                    key={`${tx.hash || index}`}
-                    href={
-                      tx.hash
-                        ? `https://base.blockscout.com/tx/${tx.hash}`
-                        : '#'
-                    }
+                    href={`${explorer}/address/${result.address}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="activity-row"
+                    aria-label="Open address in explorer"
                   >
-                    <span className="tx-hash">
-                      <i>{String(index + 1).padStart(2, '0')}</i>
-                      {shortAddress(tx.hash || 'unknown', 7, 5)}
-                    </span>
-
-                    <span>{shortAddress(counterparty, 8, 5)}</span>
-
-                    <span className="tx-value">{ethValue(tx.value)}</span>
-
-                    <span>{formatDate(tx.timestamp)}</span>
-
-                    <span className="status-badge">
-                      <i />
-                      {tx.status?.toUpperCase() || 'CONFIRMED'}
-                    </span>
+                    <FiExternalLink />
                   </a>
-                )
-              })}
+                </div>
+              </div>
+
+              <div className="result-stats">
+                <div>
+                  <span>TRANSACTIONS</span>
+                  <strong>{result.transactionCount}</strong>
+                </div>
+
+                <div>
+                  <span>CONNECTIONS</span>
+                  <strong>{result.connections}</strong>
+                </div>
+              </div>
             </div>
+
+            <div className="trace-grid">
+              <div className="map-panel">
+                <div className="panel-heading">
+                  <div>
+                    <span>NETWORK MAP</span>
+                    <strong>RELATIONSHIPS</strong>
+                  </div>
+
+                  <div className="live-indicator">
+                    <span />
+                    LIVE
+                  </div>
+                </div>
+
+                <NetworkMap
+                  address={result.address}
+                  counterparties={counterparties}
+                />
+              </div>
+
+              <div className="activity-panel">
+                <div className="panel-heading">
+                  <div>
+                    <span>RECENT ACTIVITY</span>
+                    <strong>{symbol}</strong>
+                  </div>
+
+                  <span className="activity-count">
+                    {transactions.length} EVENTS
+                  </span>
+                </div>
+
+                <div className="transaction-list">
+                  {transactions.length ? (
+                    transactions.slice(0, 12).map((tx, index) => (
+                      <button
+                        className={`transaction-row ${
+                          selected === tx ? 'is-selected' : ''
+                        }`}
+                        key={`${tx.hash || 'tx'}-${index}`}
+                        onClick={() => setSelected(tx)}
+                      >
+                        <div className="tx-index">
+                          {String(index + 1).padStart(2, '0')}
+                        </div>
+
+                        <div className="tx-main">
+                          <strong>
+                            {shortAddress(tx.from)} → {shortAddress(tx.to)}
+                          </strong>
+
+                          <span>
+                            {formatDate(tx.timestamp)}
+                            {tx.status ? ` · ${tx.status}` : ''}
+                          </span>
+                        </div>
+
+                        <div className="tx-value">
+                          {ethValue(tx.value, symbol)}
+                        </div>
+
+                        <FiArrowUpRight />
+                      </button>
+                    ))
+                  ) : (
+                    <div className="empty-state">
+                      <span>NO ACTIVITY</span>
+                      <strong>No transactions found on this network.</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {selected && (
+              <div className="transaction-detail">
+                <div>
+                  <span>SELECTED TRANSACTION</span>
+                  <strong>{shortAddress(selected.hash)}</strong>
+                </div>
+
+                {selected.hash && (
+                  <a
+                    href={`${explorer}/tx/${selected.hash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    VIEW ON EXPLORER
+                    <FiExternalLink />
+                  </a>
+                )}
+              </div>
+            )}
           </section>
-        </section>
-      )}
+        )}
+      </main>
 
-      <footer className="footer">
-        <div>
-          <Logo />
-          <span>TRACE</span>
-        </div>
+      <footer>
+        <Logo />
 
-        <p>PUBLIC WALLET → VISUAL TRANSACTION MAP</p>
+        <span>TRACE / V2</span>
 
-        <span>V1 / BASE</span>
+        <span>
+          PUBLIC WALLET INTELLIGENCE
+          <span className="footer-dot">·</span>
+          MULTI-CHAIN
+        </span>
       </footer>
-    </main>
+    </div>
   )
 }
