@@ -1,75 +1,57 @@
-# React + TypeScript + Vite
+# TRACE
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Public wallet → visual transaction map.**
 
-Currently, two official plugins are available:
+TRACE turns public blockchain activity into a visual map of wallets, contracts, transactions, and relationships.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## TRACE V2
 
-## React Compiler
+Multi-chain wallet tracing across:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+**Ethereum • Base • Arbitrum • Optimism • Polygon**
 
-## Expanding the ESLint configuration
+### Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Trace any public EVM address
+- View transaction history
+- Discover wallet counterparties
+- Identify contract interactions
+- Visualize transaction relationships
+- View recent on-chain activity
+- No wallet connection or private keys
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+React • TypeScript • Vite • React Flow • Node.js • Express • Netlify
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Architecture
 
-```
+TRACE uses a chain/provider architecture, making it possible to add more networks and data providers without rebuilding the core system.
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## API
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+`GET /api/health`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+`GET /api/chains`
 
-```
+`GET /api/trace/:chain/:address`
+
+## Versions
+
+**V1** — Base wallet tracing
+
+**V2** — Multi-chain tracing + security hardening + serverless deployment
+
+**V3** — Planned public developer API, API keys, rate limits, analytics, and integrations
+
+## Live
+
+https://traceonchain.netlify.app/
+
+## Repository
+
+https://github.com/WEB4GREAT/trace
+
+---
+
+Built by **WEB4GREAT**.
